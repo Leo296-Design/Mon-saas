@@ -10,11 +10,12 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
   if (!apiKey) {
     res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured on the server' });
     return;
   }
+  console.log(`[claude proxy] using key prefix=${apiKey.slice(0, 12)} length=${apiKey.length}`);
 
   try {
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
