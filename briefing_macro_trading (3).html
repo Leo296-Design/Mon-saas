@@ -224,6 +224,80 @@
   }
   .badge.up { background: rgba(63, 185, 80, 0.15); color: var(--accent); }
   .badge.down { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+  .journal-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .journal-section h2 {
+    font-size: 16px;
+    margin: 0 0 14px;
+    color: var(--accent2);
+  }
+  .journal-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .journal-section-header h2 { margin: 0; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  #trade-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  #trade-form label.full-width { margin-bottom: 12px; }
+  #trade-form input, #trade-form select, #trade-form textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  #trade-form input:focus, #trade-form select:focus, #trade-form textarea:focus {
+    outline: none;
+    border-color: var(--accent2);
+  }
+  #save-trade {
+    background: var(--accent);
+    color: #0d1117;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #save-trade:hover { filter: brightness(1.1); }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .stat-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .stat-card .stat-label { color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
+  .stat-card .stat-value { font-size: 18px; font-weight: 700; }
+  .stat-value.pos { color: var(--accent); }
+  .stat-value.neg { color: var(--red); }
+  .breakdown-table-title { font-size: 13px; color: var(--muted); margin: 18px 0 8px; }
 </style>
 </head>
 <body>
@@ -236,6 +310,7 @@
   <div class="tabs">
     <button class="tab-btn active" id="tab-today-btn">Aujourd'hui</button>
     <button class="tab-btn" id="tab-history-btn">Historique</button>
+    <button class="tab-btn" id="tab-journal-btn">Journal de trading</button>
   </div>
 
   <div class="tab-panel active" id="tab-today">
@@ -253,6 +328,114 @@
       <div class="history-empty">Chargement de l'historique...</div>
     </div>
   </div>
+
+  <div class="tab-panel" id="tab-journal">
+    <div class="journal-section">
+      <div class="journal-section-header">
+        <h2>Autres actifs corrélés &amp; sentiment</h2>
+        <button id="refresh-context" class="copy-btn">🔄 Actualiser</button>
+      </div>
+      <div id="market-context">
+        <div class="empty-state">Clique sur "Actualiser" pour charger le contexte marché du jour : DXY, taux US 10 ans, pétrole, Bitcoin, VIX, Fear &amp; Greed, positionnement.</div>
+      </div>
+    </div>
+
+    <div class="journal-section">
+      <h2>Nouveau trade</h2>
+      <form id="trade-form">
+        <div class="form-grid">
+          <label>Actif
+            <input type="text" id="t-asset" list="asset-list" required>
+          </label>
+          <datalist id="asset-list">
+            <option value="NQ (Nasdaq)">
+            <option value="YM (Dow)">
+            <option value="ES (S&P 500)">
+            <option value="RTY (Russell 2000)">
+            <option value="XAUUSD (Or)">
+            <option value="BTCUSD">
+            <option value="DXY">
+          </datalist>
+          <label>Sens
+            <select id="t-side">
+              <option value="long">Long</option>
+              <option value="short">Short</option>
+            </select>
+          </label>
+          <label>Date / heure
+            <input type="datetime-local" id="t-datetime" required>
+          </label>
+          <label>Setup / stratégie
+            <input type="text" id="t-setup" placeholder="ex: pivot rejection">
+          </label>
+          <label>Prix d'entrée
+            <input type="number" step="any" id="t-entry" required>
+          </label>
+          <label>Prix de sortie
+            <input type="number" step="any" id="t-exit" required>
+          </label>
+          <label>Taille de position
+            <input type="number" step="any" id="t-size" required>
+          </label>
+          <label>Stop loss prévu
+            <input type="number" step="any" id="t-sl-planned">
+          </label>
+          <label>Take profit prévu
+            <input type="number" step="any" id="t-tp-planned">
+          </label>
+          <label>Stop loss réel
+            <input type="number" step="any" id="t-sl-actual">
+          </label>
+          <label>Take profit réel
+            <input type="number" step="any" id="t-tp-actual">
+          </label>
+          <label>Émotion ressentie
+            <select id="t-emotion">
+              <option value="Confiant">Confiant</option>
+              <option value="Neutre">Neutre</option>
+              <option value="Stress">Stress</option>
+              <option value="Peur">Peur</option>
+              <option value="Euphorie">Euphorie</option>
+              <option value="FOMO">FOMO</option>
+              <option value="Frustration">Frustration</option>
+            </select>
+          </label>
+          <label>Plan suivi ?
+            <select id="t-plan-followed">
+              <option value="oui">Oui</option>
+              <option value="non">Non</option>
+              <option value="partiel">Partiellement</option>
+            </select>
+          </label>
+        </div>
+        <label class="full-width">Raison d'entrée
+          <textarea id="t-reason" rows="2" placeholder="Pourquoi es-tu entré sur ce trade ?"></textarea>
+        </label>
+        <label class="full-width">Notes libres
+          <textarea id="t-notes" rows="2" placeholder="Autres observations, leçons apprises..."></textarea>
+        </label>
+        <label class="full-width">Screenshot du graphique
+          <input type="file" id="t-screenshot" accept="image/*">
+        </label>
+        <button type="submit" id="save-trade">Enregistrer le trade</button>
+      </form>
+    </div>
+
+    <div class="journal-section">
+      <h2>Statistiques</h2>
+      <div id="stats-grid" class="stats-grid">
+        <div class="history-empty">Aucun trade enregistré pour l'instant.</div>
+      </div>
+      <div id="breakdown-tables"></div>
+    </div>
+
+    <div class="journal-section">
+      <h2>Historique des trades</h2>
+      <div id="trades-list">
+        <div class="history-empty">Chargement...</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -264,29 +447,46 @@ const btn = document.getElementById('generate');
 const content = document.getElementById('content');
 const tabTodayBtn = document.getElementById('tab-today-btn');
 const tabHistoryBtn = document.getElementById('tab-history-btn');
+const tabJournalBtn = document.getElementById('tab-journal-btn');
 const tabToday = document.getElementById('tab-today');
 const tabHistory = document.getElementById('tab-history');
+const tabJournal = document.getElementById('tab-journal');
 const historyList = document.getElementById('history-list');
+const marketContext = document.getElementById('market-context');
+const refreshContextBtn = document.getElementById('refresh-context');
+const tradeForm = document.getElementById('trade-form');
+const statsGrid = document.getElementById('stats-grid');
+const breakdownTables = document.getElementById('breakdown-tables');
+const tradesList = document.getElementById('trades-list');
 
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-tabTodayBtn.addEventListener('click', () => {
-  tabTodayBtn.classList.add('active');
-  tabHistoryBtn.classList.remove('active');
-  tabToday.classList.add('active');
-  tabHistory.classList.remove('active');
-});
+function switchTab(name) {
+  const map = {
+    today: { btn: tabTodayBtn, panel: tabToday },
+    history: { btn: tabHistoryBtn, panel: tabHistory },
+    journal: { btn: tabJournalBtn, panel: tabJournal }
+  };
+  Object.keys(map).forEach(key => {
+    map[key].btn.classList.toggle('active', key === name);
+    map[key].panel.classList.toggle('active', key === name);
+  });
+  if (name === 'history') loadHistory();
+  if (name === 'journal') {
+    loadMarketContext();
+    loadTrades();
+    if (!document.getElementById('t-datetime').value) {
+      document.getElementById('t-datetime').value = nowLocalDatetimeValue();
+    }
+  }
+}
 
-tabHistoryBtn.addEventListener('click', () => {
-  tabHistoryBtn.classList.add('active');
-  tabTodayBtn.classList.remove('active');
-  tabHistory.classList.add('active');
-  tabToday.classList.remove('active');
-  loadHistory();
-});
+tabTodayBtn.addEventListener('click', () => switchTab('today'));
+tabHistoryBtn.addEventListener('click', () => switchTab('history'));
+tabJournalBtn.addEventListener('click', () => switchTab('journal'));
 
 async function saveBriefing(dateKey, dateLabel, fullText, badgesHtml) {
   try {
@@ -416,15 +616,10 @@ function simpleMarkdownToHtml(text) {
 }
 
 async function callClaude(prompt) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
-      tools: [{ type: "web_search_20250305", name: "web_search" }]
-    })
+    body: JSON.stringify({ prompt })
   });
 
   if (!response.ok) {
@@ -657,6 +852,303 @@ Si le range asiatique n'est pas trouvable précisément, indique "n/d" plutôt q
     btn.disabled = false;
   }
 });
+
+// ---------- Journal de trading ----------
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function nowLocalDatetimeValue() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadMarketContext() {
+  try {
+    const res = await window.storage.get(`journal-context:${todayKey()}`, false);
+    if (res && res.value) {
+      const parsed = JSON.parse(res.value);
+      marketContext.innerHTML = `
+        <div class="briefing">${parsed.html}</div>
+        <div class="meta">Actualisé le ${new Date(parsed.savedAt).toLocaleString('fr-FR')}</div>
+      `;
+    }
+  } catch (err) {
+    console.error("Erreur chargement contexte marché:", err);
+  }
+}
+
+refreshContextBtn.addEventListener('click', async () => {
+  refreshContextBtn.disabled = true;
+  marketContext.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      Chargement du contexte marché...
+    </div>
+  `;
+
+  const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const contextPrompt = `Tu es un analyste de marché qui prépare un contexte pour un day trader sur indices US et or, basé en Europe.
+
+Nous sommes le ${today}. Utilise la recherche web pour trouver les données les plus récentes et rédige en français avec ces 2 sections :
+
+## Autres actifs corrélés
+- Dollar Index (DXY) : niveau actuel, variation du jour, implication pour les indices actions et l'or
+- Taux US 10 ans : niveau actuel, variation du jour, implication pour les valeurs tech/growth et l'or
+- Pétrole (WTI et Brent) : niveaux actuels, variation du jour, signal macro
+- Bitcoin (BTC) : niveau actuel, variation du jour
+
+## Sentiment & volatilité
+- VIX : niveau actuel, variation, ce qu'il indique (peur/complaisance)
+- Fear & Greed Index (CNN) : valeur et catégorie (extreme fear à extreme greed)
+- Positionnement : flux ETF récents, activité options, dark pool si l'info est trouvable ; sinon indique "n/d"
+
+Sois factuel et concis, une ligne ou courte liste à puces par élément, pas de blabla.`;
+
+  try {
+    const text = await callClaude(contextPrompt);
+    const html = simpleMarkdownToHtml(text);
+    marketContext.innerHTML = `
+      <div class="briefing">${html}</div>
+      <div class="meta">Actualisé le ${new Date().toLocaleString('fr-FR')}</div>
+    `;
+    await window.storage.set(`journal-context:${todayKey()}`, JSON.stringify({
+      html,
+      savedAt: new Date().toISOString()
+    }), false);
+  } catch (err) {
+    marketContext.innerHTML = `<div class="error">⚠️ Erreur lors du chargement du contexte marché : ${err.message}</div>`;
+    console.error("Market context error:", err);
+  } finally {
+    refreshContextBtn.disabled = false;
+  }
+});
+
+function computeTradePnl(trade) {
+  const direction = trade.side === 'short' ? -1 : 1;
+  return (trade.exit - trade.entry) * trade.size * direction;
+}
+
+tradeForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const saveBtn = document.getElementById('save-trade');
+  saveBtn.disabled = true;
+  try {
+    const screenshotFile = document.getElementById('t-screenshot').files[0];
+    const screenshot = screenshotFile ? await fileToDataUrl(screenshotFile) : '';
+
+    const parseOrNull = (id) => {
+      const v = document.getElementById(id).value;
+      return v === '' ? null : parseFloat(v);
+    };
+
+    const trade = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      asset: document.getElementById('t-asset').value.trim(),
+      side: document.getElementById('t-side').value,
+      datetime: document.getElementById('t-datetime').value,
+      setup: document.getElementById('t-setup').value.trim(),
+      entry: parseFloat(document.getElementById('t-entry').value),
+      exit: parseFloat(document.getElementById('t-exit').value),
+      size: parseFloat(document.getElementById('t-size').value),
+      slPlanned: parseOrNull('t-sl-planned'),
+      tpPlanned: parseOrNull('t-tp-planned'),
+      slActual: parseOrNull('t-sl-actual'),
+      tpActual: parseOrNull('t-tp-actual'),
+      emotion: document.getElementById('t-emotion').value,
+      planFollowed: document.getElementById('t-plan-followed').value,
+      reason: document.getElementById('t-reason').value.trim(),
+      notes: document.getElementById('t-notes').value.trim(),
+      screenshot,
+      createdAt: new Date().toISOString()
+    };
+    trade.pnl = computeTradePnl(trade);
+
+    await window.storage.set(`trade:${trade.id}`, JSON.stringify(trade), false);
+    tradeForm.reset();
+    document.getElementById('t-datetime').value = nowLocalDatetimeValue();
+    await loadTrades();
+  } catch (err) {
+    console.error("Erreur enregistrement trade:", err);
+    alert("Erreur lors de l'enregistrement du trade.");
+  } finally {
+    saveBtn.disabled = false;
+  }
+});
+
+async function loadTrades() {
+  tradesList.innerHTML = `<div class="history-empty">Chargement...</div>`;
+  try {
+    const listResult = await window.storage.list('trade:', false);
+    const keys = (listResult && listResult.keys) ? listResult.keys : [];
+
+    const trades = [];
+    for (const key of keys) {
+      try {
+        const res = await window.storage.get(key, false);
+        if (res && res.value) trades.push(JSON.parse(res.value));
+      } catch (e) {
+        // trade illisible, on l'ignore
+      }
+    }
+
+    trades.sort((a, b) => (a.datetime < b.datetime ? 1 : -1));
+    renderStats(trades);
+    renderTradesList(trades);
+  } catch (err) {
+    tradesList.innerHTML = `<div class="history-empty">Impossible de charger l'historique des trades.</div>`;
+    console.error("Erreur chargement trades:", err);
+  }
+}
+
+function groupBy(trades, keyFn) {
+  const map = {};
+  trades.forEach(t => {
+    const k = keyFn(t) || 'n/d';
+    if (!map[k]) map[k] = { count: 0, pnl: 0, wins: 0 };
+    map[k].count++;
+    map[k].pnl += t.pnl;
+    if (t.pnl > 0) map[k].wins++;
+  });
+  return map;
+}
+
+function renderBreakdown(title, map) {
+  const rows = Object.entries(map).sort((a, b) => b[1].pnl - a[1].pnl);
+  if (rows.length === 0) return '';
+  let html = `<div class="breakdown-table-title">Performance par ${escapeHtml(title)}</div><table class="briefing-table"><thead><tr><th>${escapeHtml(title)}</th><th>Trades</th><th>Win rate</th><th>P&L</th></tr></thead><tbody>`;
+  rows.forEach(([key, v]) => {
+    const wr = (v.wins / v.count * 100).toFixed(0);
+    html += `<tr><td>${escapeHtml(key)}</td><td>${v.count}</td><td>${wr}%</td><td>${v.pnl.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderStats(trades) {
+  if (trades.length === 0) {
+    statsGrid.innerHTML = `<div class="history-empty">Aucun trade enregistré pour l'instant.</div>`;
+    breakdownTables.innerHTML = '';
+    return;
+  }
+
+  const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0);
+  const wins = trades.filter(t => t.pnl > 0);
+  const losses = trades.filter(t => t.pnl < 0);
+  const winRate = (wins.length / trades.length) * 100;
+  const lossRate = 100 - winRate;
+  const avgWin = wins.length ? wins.reduce((sum, t) => sum + t.pnl, 0) / wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((sum, t) => sum + t.pnl, 0) / losses.length) : 0;
+  const rrRatio = avgLoss ? avgWin / avgLoss : 0;
+  const expectancy = (winRate / 100 * avgWin) - (lossRate / 100 * avgLoss);
+
+  const chrono = [...trades].sort((a, b) => (a.datetime > b.datetime ? 1 : -1));
+  let equity = 0, peak = 0, maxDrawdown = 0;
+  chrono.forEach(t => {
+    equity += t.pnl;
+    if (equity > peak) peak = equity;
+    const dd = peak - equity;
+    if (dd > maxDrawdown) maxDrawdown = dd;
+  });
+
+  const fmt = (n) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+
+  statsGrid.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Trades</div><div class="stat-value">${trades.length}</div></div>
+    <div class="stat-card"><div class="stat-label">P&L cumulé</div><div class="stat-value ${totalPnl >= 0 ? 'pos' : 'neg'}">${fmt(totalPnl)}</div></div>
+    <div class="stat-card"><div class="stat-label">Win rate</div><div class="stat-value">${fmt(winRate)}%</div></div>
+    <div class="stat-card"><div class="stat-label">Gain moyen</div><div class="stat-value pos">${fmt(avgWin)}</div></div>
+    <div class="stat-card"><div class="stat-label">Perte moyenne</div><div class="stat-value neg">${fmt(avgLoss)}</div></div>
+    <div class="stat-card"><div class="stat-label">Ratio gain/perte</div><div class="stat-value">${fmt(rrRatio)}</div></div>
+    <div class="stat-card"><div class="stat-label">Espérance / trade</div><div class="stat-value ${expectancy >= 0 ? 'pos' : 'neg'}">${fmt(expectancy)}</div></div>
+    <div class="stat-card"><div class="stat-label">Max drawdown</div><div class="stat-value neg">${fmt(maxDrawdown)}</div></div>
+  `;
+
+  breakdownTables.innerHTML =
+    renderBreakdown('actif', groupBy(trades, t => t.asset)) +
+    renderBreakdown('setup', groupBy(trades, t => t.setup)) +
+    renderBreakdown('jour de la semaine', groupBy(trades, t => t.datetime ? new Date(t.datetime).toLocaleDateString('fr-FR', { weekday: 'long' }) : '')) +
+    renderBreakdown('heure', groupBy(trades, t => t.datetime ? `${String(new Date(t.datetime).getHours()).padStart(2, '0')}h` : ''));
+}
+
+function renderTradesList(trades) {
+  if (trades.length === 0) {
+    tradesList.innerHTML = `<div class="history-empty">Aucun trade enregistré pour l'instant. Utilise le formulaire ci-dessus pour ajouter ton premier trade.</div>`;
+    return;
+  }
+
+  tradesList.innerHTML = trades.map(t => {
+    const dateLabel = t.datetime ? new Date(t.datetime).toLocaleString('fr-FR') : 'n/d';
+    const pnlLabel = t.pnl.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+    const na = (v) => (v === null || v === undefined || v === '') ? 'n/d' : v;
+    return `
+      <div class="history-item" data-key="trade:${t.id}">
+        <div class="history-header">
+          <span>
+            <span class="badge ${t.side === 'long' ? 'up' : 'down'}">${t.side === 'long' ? 'LONG' : 'SHORT'}</span>
+            <strong>${escapeHtml(t.asset) || 'n/d'}</strong> — ${dateLabel}
+            <span class="badge ${t.pnl >= 0 ? 'up' : 'down'}">${t.pnl >= 0 ? '+' : ''}${pnlLabel}</span>
+          </span>
+          <span>
+            <button class="delete-btn" data-key="trade:${t.id}">Supprimer</button>
+            <span class="chevron">▶</span>
+          </span>
+        </div>
+        <div class="history-body">
+          <table class="briefing-table">
+            <tbody>
+              <tr><td>Setup</td><td>${escapeHtml(t.setup) || 'n/d'}</td></tr>
+              <tr><td>Entrée</td><td>${na(t.entry)}</td></tr>
+              <tr><td>Sortie</td><td>${na(t.exit)}</td></tr>
+              <tr><td>Taille</td><td>${na(t.size)}</td></tr>
+              <tr><td>SL prévu / réel</td><td>${na(t.slPlanned)} / ${na(t.slActual)}</td></tr>
+              <tr><td>TP prévu / réel</td><td>${na(t.tpPlanned)} / ${na(t.tpActual)}</td></tr>
+              <tr><td>Émotion</td><td>${escapeHtml(t.emotion) || 'n/d'}</td></tr>
+              <tr><td>Plan suivi</td><td>${escapeHtml(t.planFollowed) || 'n/d'}</td></tr>
+            </tbody>
+          </table>
+          ${t.reason ? `<p><strong>Raison d'entrée :</strong> ${escapeHtml(t.reason)}</p>` : ''}
+          ${t.notes ? `<p><strong>Notes :</strong> ${escapeHtml(t.notes)}</p>` : ''}
+          ${t.screenshot ? `<img src="${t.screenshot}" style="max-width:100%;border-radius:8px;border:1px solid var(--border);margin-top:10px;">` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  tradesList.querySelectorAll('.history-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      if (e.target.classList.contains('delete-btn')) return;
+      header.parentElement.classList.toggle('open');
+    });
+  });
+
+  tradesList.querySelectorAll('.delete-btn').forEach(delBtn => {
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const key = delBtn.dataset.key;
+      try {
+        await window.storage.delete(key, false);
+        loadTrades();
+      } catch (err) {
+        console.error("Erreur suppression trade:", err);
+      }
+    });
+  });
+}
 </script>
 </body>
 </html>
