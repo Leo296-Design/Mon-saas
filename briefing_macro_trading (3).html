@@ -298,6 +298,27 @@
   .stat-value.pos { color: var(--accent); }
   .stat-value.neg { color: var(--red); }
   .breakdown-table-title { font-size: 13px; color: var(--muted); margin: 18px 0 8px; }
+  .index-subtabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .subtab-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .subtab-btn.active {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent2);
+    border-color: var(--accent2);
+  }
 </style>
 </head>
 <body>
@@ -311,6 +332,7 @@
     <button class="tab-btn active" id="tab-today-btn">Aujourd'hui</button>
     <button class="tab-btn" id="tab-history-btn">Historique</button>
     <button class="tab-btn" id="tab-journal-btn">Journal de trading</button>
+    <button class="tab-btn" id="tab-analysis-btn">Analyse approfondie</button>
   </div>
 
   <div class="tab-panel active" id="tab-today">
@@ -436,6 +458,25 @@
       </div>
     </div>
   </div>
+
+  <div class="tab-panel" id="tab-analysis">
+    <div class="index-subtabs" id="index-subtabs">
+      <button class="subtab-btn active" data-index="dow">Dow Jones</button>
+      <button class="subtab-btn" data-index="nasdaq">Nasdaq</button>
+      <button class="subtab-btn" data-index="sp500">S&P 500</button>
+      <button class="subtab-btn" data-index="russell">Russell 2000</button>
+    </div>
+
+    <div class="journal-section">
+      <div class="journal-section-header">
+        <h2 id="analysis-title">Dow Jones — Analyse approfondie</h2>
+        <button id="generate-analysis" class="copy-btn">🔄 Générer / Actualiser</button>
+      </div>
+      <div id="analysis-content">
+        <div class="empty-state">Clique sur "Générer / Actualiser" pour produire l'analyse taux d'intérêt, indicateurs macro et prévisions trimestrielles pour cet indice.</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -448,9 +489,11 @@ const content = document.getElementById('content');
 const tabTodayBtn = document.getElementById('tab-today-btn');
 const tabHistoryBtn = document.getElementById('tab-history-btn');
 const tabJournalBtn = document.getElementById('tab-journal-btn');
+const tabAnalysisBtn = document.getElementById('tab-analysis-btn');
 const tabToday = document.getElementById('tab-today');
 const tabHistory = document.getElementById('tab-history');
 const tabJournal = document.getElementById('tab-journal');
+const tabAnalysis = document.getElementById('tab-analysis');
 const historyList = document.getElementById('history-list');
 const marketContext = document.getElementById('market-context');
 const refreshContextBtn = document.getElementById('refresh-context');
@@ -468,7 +511,8 @@ function switchTab(name) {
   const map = {
     today: { btn: tabTodayBtn, panel: tabToday },
     history: { btn: tabHistoryBtn, panel: tabHistory },
-    journal: { btn: tabJournalBtn, panel: tabJournal }
+    journal: { btn: tabJournalBtn, panel: tabJournal },
+    analysis: { btn: tabAnalysisBtn, panel: tabAnalysis }
   };
   Object.keys(map).forEach(key => {
     map[key].btn.classList.toggle('active', key === name);
@@ -482,11 +526,13 @@ function switchTab(name) {
       document.getElementById('t-datetime').value = nowLocalDatetimeValue();
     }
   }
+  if (name === 'analysis') loadAnalysis(currentAnalysisIndex);
 }
 
 tabTodayBtn.addEventListener('click', () => switchTab('today'));
 tabHistoryBtn.addEventListener('click', () => switchTab('history'));
 tabJournalBtn.addEventListener('click', () => switchTab('journal'));
+tabAnalysisBtn.addEventListener('click', () => switchTab('analysis'));
 
 async function saveBriefing(dateKey, dateLabel, fullText, badgesHtml) {
   try {
@@ -1149,6 +1195,177 @@ function renderTradesList(trades) {
     });
   });
 }
+
+// ---------- Analyse approfondie par indice ----------
+
+const indices = [
+  { key: 'dow', label: 'Dow Jones', full: 'Dow Jones Industrial Average (Dow 30 / YM)' },
+  { key: 'nasdaq', label: 'Nasdaq', full: 'Nasdaq 100 (NQ)' },
+  { key: 'sp500', label: 'S&P 500', full: 'S&P 500 (ES)' },
+  { key: 'russell', label: 'Russell 2000', full: 'Russell 2000 (RTY)' }
+];
+
+let currentAnalysisIndex = 'dow';
+
+const indexSubtabs = document.getElementById('index-subtabs');
+const analysisTitle = document.getElementById('analysis-title');
+const analysisContent = document.getElementById('analysis-content');
+const generateAnalysisBtn = document.getElementById('generate-analysis');
+
+function updateAnalysisTitle() {
+  const idx = indices.find(i => i.key === currentAnalysisIndex);
+  analysisTitle.textContent = `${idx.label} — Analyse approfondie`;
+}
+
+indexSubtabs.querySelectorAll('.subtab-btn').forEach(subBtn => {
+  subBtn.addEventListener('click', () => {
+    indexSubtabs.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+    subBtn.classList.add('active');
+    currentAnalysisIndex = subBtn.dataset.index;
+    updateAnalysisTitle();
+    loadAnalysis(currentAnalysisIndex);
+  });
+});
+
+async function loadAnalysis(indexKey) {
+  analysisContent.innerHTML = `<div class="empty-state">Clique sur "Générer / Actualiser" pour produire l'analyse taux d'intérêt, indicateurs macro et prévisions trimestrielles pour cet indice.</div>`;
+  try {
+    const res = await window.storage.get(`deep-analysis:${indexKey}:${todayKey()}`, false);
+    if (res && res.value) {
+      const parsed = JSON.parse(res.value);
+      analysisContent.innerHTML = `
+        <div class="briefing">${parsed.html}</div>
+        <div class="meta">Actualisé le ${new Date(parsed.savedAt).toLocaleString('fr-FR')}</div>
+      `;
+    }
+  } catch (err) {
+    console.error("Erreur chargement analyse:", err);
+  }
+}
+
+function buildRatesPrompt(idx, today) {
+  return `Tu es un analyste macro qui prépare une analyse de l'impact des taux d'intérêt sur ${idx.full}, pour un day trader actif basé en Europe.
+
+Nous sommes le ${today}. Utilise la recherche web pour trouver les données les plus récentes (taux Fed funds, taux US 10 ans, P/E forward, croissance BPA du trimestre en cours).
+
+Rédige en français avec exactement cette structure :
+
+## Indicateurs clés — taux
+| Taux Fed funds | Taux US 10 ans | P/E Forward | Croissance BPA |
+|---|---|---|---|
+| ... | ... | ... | ... |
+
+## Canaux de transmission
+Pour chacun de ces 6 canaux, 1-2 phrases sur l'effet actuel sur ${idx.full} : Coût de la dette, Valorisation P/E, Demande consommateur, Dollar & exportations, Revenus financiers, Capex & investissement.
+
+## Impact par secteur
+| Secteur | Valeurs clés | Verdict | Mécanisme clé |
+|---|---|---|---|
+Liste les principaux secteurs qui composent ${idx.full}, avec les tickers les plus représentatifs de cet indice, un verdict (Gagnant / Positif / Neutre / Exposé) et le mécanisme en une courte phrase.
+
+Sois factuel et concis, pas de blabla.`;
+}
+
+function buildMacroPrompt(idx, today) {
+  return `Tu es un analyste macro qui prépare une analyse des indicateurs macroéconomiques US et de leur impact sur ${idx.full}, pour un day trader basé en Europe.
+
+Nous sommes le ${today}. Utilise la recherche web pour trouver les derniers chiffres publiés (taux de chômage, IPC/CPI, PPI, PMI manufacturier ISM, PMI services ISM).
+
+Rédige en français avec exactement cette structure :
+
+## Indicateurs macro du jour
+| Chômage | IPC (CPI) | PPI | PMI Manufacturier | PMI Services |
+|---|---|---|---|---|
+| ... | ... | ... | ... | ... |
+
+## Impact du marché de l'emploi par secteur
+Tableau markdown : Secteur | Valeurs clés | Verdict | Mécanisme, adapté aux composantes de ${idx.full}.
+
+## Inflation (IPC & PPI) et marges
+Quelques puces courtes sur l'effet de l'inflation actuelle sur les marges des entreprises de ${idx.full}.
+
+## PMI — activité et signaux avancés
+Tableau markdown : Indicateur | Valeur | Signal | Interprétation pour ${idx.full}.
+
+Sois factuel et concis, pas de blabla.`;
+}
+
+function buildOutlookPrompt(idx, today) {
+  return `Tu es un analyste qui prépare des prévisions trimestrielles pour ${idx.full}, pour un day trader basé en Europe.
+
+Nous sommes le ${today}. Utilise la recherche web pour les données de consensus les plus récentes (croissance BPA, PIB US, cibles Fed funds, P/E forward).
+
+Rédige en français avec exactement cette structure :
+
+## Contexte macro
+Synthèse en 3-4 phrases du contexte macro (croissance BPA attendue, politique monétaire, scénarios Fed) pour le trimestre en cours.
+
+## Grands catalyseurs par valeur
+| Ticker | Société | Croissance BPA | Outlook | Catalyseur clé |
+|---|---|---|---|---|
+Pour les 5 à 8 valeurs les plus importantes de ${idx.full}.
+
+## Risques structurels
+Liste à puces des principaux risques asymétriques (géopolitique, valorisation, capex IA, etc.) pour ${idx.full} ce trimestre.
+
+## Scénarios de marché
+| Scénario | Probabilité | Cible ${idx.label} | Conditions |
+|---|---|---|---|
+Bull case, Base case, Bear case avec fourchettes de niveaux réalistes pour ${idx.label}.
+
+## Synthèse stratégique
+| Dimension | Lecture | Implications tactiques |
+|---|---|---|
+Fondamentaux, Valorisation, Géopolitique, Fed/Taux, Capex IA ou autre thème pertinent.
+
+Sois factuel et concis, pas de blabla.`;
+}
+
+generateAnalysisBtn.addEventListener('click', async () => {
+  generateAnalysisBtn.disabled = true;
+  const idx = indices.find(i => i.key === currentAnalysisIndex);
+  const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  analysisContent.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      1/3 : Taux d'intérêt & canaux de transmission (${idx.label})...
+    </div>
+  `;
+
+  try {
+    const partRates = await callClaude(buildRatesPrompt(idx, today));
+    analysisContent.innerHTML = `
+      <div class="briefing">${simpleMarkdownToHtml(partRates)}</div>
+      <div class="loading"><div class="spinner"></div>2/3 : Indicateurs macro (${idx.label})...</div>
+    `;
+
+    const partMacro = await callClaude(buildMacroPrompt(idx, today));
+    analysisContent.innerHTML = `
+      <div class="briefing">${simpleMarkdownToHtml(partRates)}<br><br>${simpleMarkdownToHtml(partMacro)}</div>
+      <div class="loading"><div class="spinner"></div>3/3 : Prévisions trimestrielles (${idx.label})...</div>
+    `;
+
+    const partOutlook = await callClaude(buildOutlookPrompt(idx, today));
+
+    const fullHtml = `${simpleMarkdownToHtml(partRates)}<br><br>${simpleMarkdownToHtml(partMacro)}<br><br>${simpleMarkdownToHtml(partOutlook)}`;
+
+    analysisContent.innerHTML = `
+      <div class="briefing">${fullHtml}</div>
+      <div class="meta">Actualisé le ${new Date().toLocaleString('fr-FR')}</div>
+    `;
+
+    await window.storage.set(`deep-analysis:${idx.key}:${todayKey()}`, JSON.stringify({
+      html: fullHtml,
+      savedAt: new Date().toISOString()
+    }), false);
+  } catch (err) {
+    analysisContent.innerHTML = `<div class="error">⚠️ Erreur lors de la génération de l'analyse : ${err.message}</div>`;
+    console.error("Analysis error:", err);
+  } finally {
+    generateAnalysisBtn.disabled = false;
+  }
+});
 </script>
 </body>
 </html>
