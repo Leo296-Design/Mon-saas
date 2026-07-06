@@ -668,11 +668,12 @@ async function callClaude(prompt) {
     body: JSON.stringify({ prompt })
   });
 
-  if (!response.ok) {
-    throw new Error(`Erreur API: ${response.status}`);
-  }
-
   const data = await response.json();
+
+  if (!response.ok) {
+    const detail = data?.error?.message || data?.error || JSON.stringify(data);
+    throw new Error(`Erreur API ${response.status} : ${detail}`);
+  }
   const text = data.content
     .filter(block => block.type === "text")
     .map(block => block.text)
