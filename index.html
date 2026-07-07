@@ -691,7 +691,7 @@ btn.addEventListener('click', async () => {
   content.innerHTML = `
     <div class="loading">
       <div class="spinner"></div>
-      Partie 1/4 : Fed, dollar, géopolitique, calendrier économique...
+      Partie 1/3 : Fed, dollar, géopolitique, calendrier économique...
     </div>
   `;
 
@@ -765,43 +765,6 @@ Format attendu :
 Pas de texte superflu, juste le titre et le tableau.`;
   }
 
-  const pivotInstruments = [
-    { name: "Dow Jones (YM)", source: "zonebourse.com Dow Jones Industrial ou Investing.com futures YM" },
-    { name: "Nasdaq (NQ)", source: "zonebourse.com Nasdaq Composite ou Investing.com futures NQ" },
-    { name: "S&P 500 (ES)", source: "zonebourse.com S&P 500 ou Investing.com futures ES" },
-    { name: "Russell 2000 (RTY)", source: "zonebourse.com Russell 2000 ou Investing.com futures RTY" }
-  ];
-
-  function buildPivotPrompt(instrument) {
-    return `Tu es un analyste technique qui prépare des niveaux de trading pour un day trader sur ${instrument.name}, basé en Europe, qui trade en session US avec une stratégie de pivot rejection et de liquidation du range asiatique.
-
-Nous sommes le ${today}. Utilise la recherche web (${instrument.source}) pour trouver le Haut, Bas et Clôture de la séance précédente pour ${instrument.name}.
-
-Calcule les pivot points classiques à partir de ces valeurs (formule standard) :
-PP = (Haut + Bas + Clôture) / 3
-R1 = 2×PP - Bas | S1 = 2×PP - Haut
-R2 = PP + (Haut - Bas) | S2 = PP - (Haut - Bas)
-R3 = Haut + 2×(PP - Bas) | S3 = Bas - 2×(Haut - PP)
-
-Cherche aussi le Haut et Bas de la session asiatique la plus récente (Tokyo/Sydney, environ 00h00-08h00 heure de Paris) pour ${instrument.name} ou son proxy (indice cash équivalent), si l'info est trouvable.
-
-Présente le résultat ainsi, sans texte superflu :
-## ${instrument.name}
-| Niveau | Valeur |
-|---|---|
-| R3 | ... |
-| R2 | ... |
-| R1 | ... |
-| Pivot (PP) | ... |
-| S1 | ... |
-| S2 | ... |
-| S3 | ... |
-| Range asiatique (Haut) | ... |
-| Range asiatique (Bas) | ... |
-
-Si le range asiatique n'est pas trouvable précisément, indique "n/d" plutôt que d'inventer.`;
-  }
-
   try {
     const part1 = await callClaude(promptPart1);
 
@@ -809,7 +772,7 @@ Si le range asiatique n'est pas trouvable précisément, indique "n/d" plutôt q
       <div class="briefing">${simpleMarkdownToHtml(part1)}</div>
       <div class="loading">
         <div class="spinner"></div>
-        Partie 2/4 : earnings, niveaux par indice, or, résumé...
+        Partie 2/3 : earnings, niveaux par indice, or, résumé...
       </div>
     `;
 
@@ -819,37 +782,20 @@ Si le range asiatique n'est pas trouvable précisément, indique "n/d" plutôt q
       <div class="briefing">${simpleMarkdownToHtml(part1)}<br><br>${simpleMarkdownToHtml(part2)}</div>
       <div class="loading">
         <div class="spinner"></div>
-        Partie 3/4 : historique 5 jours (1/${instruments.length})...
+        Partie 3/3 : historique 5 jours (1/${instruments.length})...
       </div>
     `;
 
     const tableParts = [];
     for (let idx = 0; idx < instruments.length; idx++) {
-      content.querySelector('.loading .spinner').nextSibling.textContent = ` Partie 3/4 : historique 5 jours (${idx + 1}/${instruments.length} - ${instruments[idx].name})...`;
+      content.querySelector('.loading .spinner').nextSibling.textContent = ` Partie 3/3 : historique 5 jours (${idx + 1}/${instruments.length} - ${instruments[idx].name})...`;
       const tablePart = await callClaude(buildTablePrompt(instruments[idx]));
       tableParts.push(tablePart);
     }
 
     const part3 = tableParts.join('\n\n');
 
-    content.innerHTML = `
-      <div class="briefing">${simpleMarkdownToHtml(part1)}<br><br>${simpleMarkdownToHtml(part2)}<br><br>${simpleMarkdownToHtml(part3)}</div>
-      <div class="loading">
-        <div class="spinner"></div>
-        Partie 4/4 : pivot points & range asiatique (1/${pivotInstruments.length})...
-      </div>
-    `;
-
-    const pivotParts = [];
-    for (let idx = 0; idx < pivotInstruments.length; idx++) {
-      content.querySelector('.loading .spinner').nextSibling.textContent = ` Partie 4/4 : pivot points & range asiatique (${idx + 1}/${pivotInstruments.length} - ${pivotInstruments[idx].name})...`;
-      const pivotPart = await callClaude(buildPivotPrompt(pivotInstruments[idx]));
-      pivotParts.push(pivotPart);
-    }
-
-    const part4 = `## Pivot Points & Range Asiatique\n\n` + pivotParts.join('\n\n');
-
-    const fullHtml = `${simpleMarkdownToHtml(part1)}<br><br>${simpleMarkdownToHtml(part2)}<br><br>${simpleMarkdownToHtml(part3)}<br><br>${simpleMarkdownToHtml(part4)}`;
+    const fullHtml = `${simpleMarkdownToHtml(part1)}<br><br>${simpleMarkdownToHtml(part2)}<br><br>${simpleMarkdownToHtml(part3)}`;
 
     content.innerHTML = `
       <div class="briefing">${fullHtml}</div>
