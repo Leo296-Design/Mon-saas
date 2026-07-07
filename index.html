@@ -680,7 +680,8 @@ async function callClaude(prompt) {
     .join("\n");
 
   if (!text.trim()) {
-    throw new Error("Réponse vide reçue.");
+    const blockTypes = (data.content || []).map(b => b.type).join(', ') || 'aucun';
+    throw new Error(`Réponse vide reçue (stop_reason: ${data.stop_reason || 'inconnu'}, blocs reçus: ${blockTypes}).`);
   }
   return text;
 }
