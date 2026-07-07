@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Abonnement — Briefing Macro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --border: #2a2a2a;
+    --text: #e8e8e8;
+    --text-bright: #ffffff;
+    --muted: #888888;
+    --accent2: #ff9500;
+    --red: #ff3b30;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-condensed: 'Roboto Condensed', Arial Narrow, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .box {
+    width: 100%;
+    max-width: 420px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 32px;
+    text-align: center;
+  }
+  h1 {
+    font-family: var(--font-condensed);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-bright);
+    font-size: 18px;
+    margin: 0 0 12px;
+    font-weight: 700;
+  }
+  .price {
+    font-family: var(--font-mono);
+    color: var(--accent2);
+    font-size: 36px;
+    font-weight: 700;
+    margin: 16px 0 4px;
+  }
+  .price span { font-size: 16px; color: var(--muted); }
+  p { color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+  button {
+    width: 100%;
+    background: var(--accent2);
+    color: #000000;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 2px;
+    font-family: var(--font-condensed);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.15); }
+  .error {
+    background: rgba(255, 59, 48, 0.08);
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 10px 12px;
+    border-radius: 2px;
+    font-size: 13px;
+    margin: 14px 0 0;
+    display: none;
+  }
+  .logout { margin-top: 18px; font-size: 12.5px; }
+  .logout a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>Abonnement requis</h1>
+    <p>L'accès à Briefing Macro nécessite un abonnement actif.</p>
+    <div class="price">19€ <span>/ mois</span></div>
+    <button id="subscribe-btn">S'abonner</button>
+    <div id="error" class="error"></div>
+    <div class="logout"><a id="logout-link">Se déconnecter</a></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(async () => {
+  const errorDiv = document.getElementById('error');
+  const subscribeBtn = document.getElementById('subscribe-btn');
+
+  let supabaseClient;
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  } catch (err) {
+    errorDiv.textContent = "Impossible de contacter le serveur d'authentification.";
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  const { data: sub } = await supabaseClient
+    .from('subscriptions')
+    .select('status')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  if (sub && sub.status === 'active') {
+    window.location.href = '/index.html';
+    return;
+  }
+
+  subscribeBtn.addEventListener('click', async () => {
+    errorDiv.style.display = 'none';
+    subscribeBtn.disabled = true;
+    subscribeBtn.textContent = 'Redirection...';
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Impossible de créer la session de paiement.');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      errorDiv.textContent = err.message;
+      errorDiv.style.display = 'block';
+      subscribeBtn.disabled = false;
+      subscribeBtn.textContent = "S'abonner";
+    }
+  });
+
+  document.getElementById('logout-link').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '/login.html';
+  });
+})();
+</script>
+</body>
+</html>

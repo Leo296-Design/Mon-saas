@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Créer un compte — Briefing Macro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --border: #2a2a2a;
+    --text: #e8e8e8;
+    --text-bright: #ffffff;
+    --muted: #888888;
+    --accent2: #ff9500;
+    --red: #ff3b30;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-condensed: 'Roboto Condensed', Arial Narrow, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .auth-box {
+    width: 100%;
+    max-width: 380px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 28px;
+  }
+  h1 {
+    font-family: var(--font-condensed);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-bright);
+    font-size: 18px;
+    margin: 0 0 6px;
+    font-weight: 700;
+  }
+  .price-note {
+    font-family: var(--font-condensed);
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 20px;
+  }
+  .price-note strong { color: var(--accent2); }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-family: var(--font-condensed);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 10px;
+    border-radius: 2px;
+    font-size: 13px;
+    font-family: var(--font-body);
+  }
+  input:focus { outline: none; border-color: var(--accent2); }
+  button {
+    width: 100%;
+    background: var(--accent2);
+    color: #000000;
+    border: none;
+    padding: 11px 20px;
+    border-radius: 2px;
+    font-family: var(--font-condensed);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.15); }
+  .error {
+    background: rgba(255, 59, 48, 0.08);
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 10px 12px;
+    border-radius: 2px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .switch {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .switch a { color: var(--accent2); text-decoration: none; }
+  .switch a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="auth-box">
+    <h1>Créer un compte</h1>
+    <p class="price-note">Abonnement <strong>19€/mois</strong>, paiement par carte via Stripe à l'étape suivante.</p>
+    <div id="error" class="error"></div>
+    <form id="signup-form">
+      <label>Email
+        <input type="email" id="email" required autocomplete="email">
+      </label>
+      <label>Mot de passe
+        <input type="password" id="password" required autocomplete="new-password" minlength="8">
+      </label>
+      <label>Confirmer le mot de passe
+        <input type="password" id="password-confirm" required autocomplete="new-password" minlength="8">
+      </label>
+      <button type="submit" id="submit-btn">Créer mon compte et payer</button>
+    </form>
+    <div class="switch">Déjà un compte ? <a href="/login.html">Se connecter</a></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(async () => {
+  const errorDiv = document.getElementById('error');
+  const form = document.getElementById('signup-form');
+  const submitBtn = document.getElementById('submit-btn');
+
+  let supabaseClient;
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  } catch (err) {
+    errorDiv.textContent = "Impossible de contacter le serveur d'authentification.";
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    window.location.href = '/index.html';
+    return;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorDiv.style.display = 'none';
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const passwordConfirm = document.getElementById('password-confirm').value;
+
+    if (password !== passwordConfirm) {
+      errorDiv.textContent = 'Les mots de passe ne correspondent pas.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Création du compte...';
+
+    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+    if (signUpError) {
+      errorDiv.textContent = signUpError.message;
+      errorDiv.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Créer mon compte et payer';
+      return;
+    }
+
+    let session = signUpData.session;
+    if (!session) {
+      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        errorDiv.textContent = "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse avant de te connecter.";
+        errorDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Créer mon compte et payer';
+        return;
+      }
+      session = signInData.session;
+    }
+
+    submitBtn.textContent = 'Redirection vers le paiement...';
+
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Impossible de créer la session de paiement.');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      errorDiv.textContent = `Compte créé, mais erreur lors de la redirection vers le paiement : ${err.message}. Tu peux réessayer depuis la page abonnement.`;
+      errorDiv.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Créer mon compte et payer';
+      setTimeout(() => { window.location.href = '/subscribe.html'; }, 3000);
+    }
+  });
+})();
+</script>
+</body>
+</html>

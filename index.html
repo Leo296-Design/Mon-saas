@@ -25,6 +25,26 @@
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   }
   * { box-sizing: border-box; }
+  body:not(.authed) { visibility: hidden; }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  #logout-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font-condensed);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+    font-size: 11.5px;
+    padding: 6px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  #logout-btn:hover { color: var(--red); border-color: var(--red); }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border-bright); }
@@ -405,7 +425,10 @@
 <div class="container">
   <header>
     <h1>Briefing Macro — Indices US &amp; Or</h1>
-    <span class="date" id="today"></span>
+    <div class="header-actions">
+      <span class="date" id="today"></span>
+      <button id="logout-btn">Se déconnecter</button>
+    </div>
   </header>
 
   <div class="tabs">
@@ -559,6 +582,96 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+let supabaseClient = null;
+let currentUserId = null;
+
+const authReady = (async () => {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      window.location.href = '/login.html';
+      return Promise.reject(new Error('not authenticated'));
+    }
+
+    const { data: sub } = await supabaseClient
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (!sub || sub.status !== 'active') {
+      window.location.href = '/subscribe.html';
+      return Promise.reject(new Error('no active subscription'));
+    }
+
+    currentUserId = session.user.id;
+    document.body.classList.add('authed');
+  } catch (err) {
+    console.error('Erreur de vérification de session:', err);
+    throw err;
+  }
+})();
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  try {
+    await authReady;
+  } catch (e) { /* déjà redirigé */ }
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
+  window.location.href = '/login.html';
+});
+
+window.storage = {
+  async set(key, value) {
+    await authReady;
+    const { error } = await supabaseClient.from('kv_store').upsert({
+      user_id: currentUserId,
+      key,
+      value,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    return { ok: true };
+  },
+  async get(key) {
+    await authReady;
+    const { data, error } = await supabaseClient
+      .from('kv_store')
+      .select('value')
+      .eq('user_id', currentUserId)
+      .eq('key', key)
+      .maybeSingle();
+    if (error) throw error;
+    return { value: data ? data.value : undefined };
+  },
+  async list(prefix) {
+    await authReady;
+    const { data, error } = await supabaseClient
+      .from('kv_store')
+      .select('key')
+      .eq('user_id', currentUserId)
+      .like('key', `${prefix}%`);
+    if (error) throw error;
+    return { keys: (data || []).map(row => row.key) };
+  },
+  async delete(key) {
+    await authReady;
+    const { error } = await supabaseClient
+      .from('kv_store')
+      .delete()
+      .eq('user_id', currentUserId)
+      .eq('key', key);
+    if (error) throw error;
+    return { ok: true };
+  }
+};
+</script>
 <script>
 document.getElementById('today').textContent = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
