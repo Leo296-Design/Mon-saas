@@ -686,6 +686,39 @@ async function callClaude(prompt) {
   return text;
 }
 
+function renderBriefingResult(fullHtml, generatedAt) {
+  content.innerHTML = `
+    <div class="briefing">${fullHtml}</div>
+    <div class="meta">
+      <button id="copy-btn" class="copy-btn">📋 Copier le briefing</button>
+      Généré le ${generatedAt.toLocaleString('fr-FR')}
+    </div>
+  `;
+  document.getElementById('copy-btn').addEventListener('click', () => {
+    const plainText = content.querySelector('.briefing').innerText;
+    navigator.clipboard.writeText(plainText).then(() => {
+      const copyBtn = document.getElementById('copy-btn');
+      const original = copyBtn.textContent;
+      copyBtn.textContent = '✅ Copié !';
+      setTimeout(() => { copyBtn.textContent = original; }, 2000);
+    });
+  });
+}
+
+async function loadTodayBriefing() {
+  try {
+    const res = await window.storage.get(`briefing:${todayKey()}`, false);
+    if (res && res.value) {
+      const parsed = JSON.parse(res.value);
+      renderBriefingResult(parsed.html, new Date(parsed.savedAt));
+    }
+  } catch (err) {
+    console.error("Erreur chargement du briefing du jour:", err);
+  }
+}
+
+loadTodayBriefing();
+
 btn.addEventListener('click', async () => {
   btn.disabled = true;
   content.innerHTML = `
@@ -797,23 +830,7 @@ Pas de texte superflu, juste le titre et le tableau.`;
 
     const fullHtml = `${simpleMarkdownToHtml(part1)}<br><br>${simpleMarkdownToHtml(part2)}<br><br>${simpleMarkdownToHtml(part3)}`;
 
-    content.innerHTML = `
-      <div class="briefing">${fullHtml}</div>
-      <div class="meta">
-        <button id="copy-btn" class="copy-btn">📋 Copier le briefing</button>
-        Généré le ${new Date().toLocaleString('fr-FR')}
-      </div>
-    `;
-
-    document.getElementById('copy-btn').addEventListener('click', () => {
-      const plainText = content.querySelector('.briefing').innerText;
-      navigator.clipboard.writeText(plainText).then(() => {
-        const copyBtn = document.getElementById('copy-btn');
-        const original = copyBtn.textContent;
-        copyBtn.textContent = '✅ Copié !';
-        setTimeout(() => { copyBtn.textContent = original; }, 2000);
-      });
-    });
+    renderBriefingResult(fullHtml, new Date());
 
     function extractBadges(tableParts, instrumentList) {
       let badges = '';
